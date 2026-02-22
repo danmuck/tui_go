@@ -74,7 +74,8 @@ func DefaultConfig() Config {
 	}
 }
 
-// Configure sets the package-global config, filling zero fields with defaults.
+// Configure sets the package-global config. Zero-valued TUI fields and empty
+// color strings are replaced with defaults from DefaultConfig before storing.
 func Configure(cfg Config) {
 	cfg = normalizeConfig(cfg)
 	stateMu.Lock()
@@ -135,6 +136,7 @@ type fileConfig struct {
 	NoColor bool            `toml:"no_color"`
 }
 
+// tuiFileConfig is the on-disk TOML shape of TUIConfig.
 type tuiFileConfig struct {
 	MenuSelectedPrefix   string `toml:"menu_selected_prefix"`
 	MenuUnselectedPrefix string `toml:"menu_unselected_prefix"`
@@ -145,6 +147,8 @@ type tuiFileConfig struct {
 	Centered             bool   `toml:"centered"`
 }
 
+// colorFileConfig is the on-disk TOML shape of ColorConfig.
+// Color values are 256-color palette indices (0–255); absent fields are nil.
 type colorFileConfig struct {
 	Menu    *int `toml:"menu"`
 	Title   *int `toml:"title"`
@@ -157,7 +161,11 @@ func color256(p *int) string {
 	if p == nil {
 		return ""
 	}
-	return smplog.StyleColor256(*p)
+	v := *p
+	if v < 0 || v > 255 {
+		return ""
+	}
+	return smplog.StyleColor256(v)
 }
 
 // ConfigFromFile parses a TOML file at path and returns a Config.

@@ -20,6 +20,12 @@ func TestDefaultConfigMatchesSmplogColors(t *testing.T) {
 	if cfg.Colors.Prompt != d.Prompt {
 		t.Fatalf("Prompt color mismatch: got %q want %q", cfg.Colors.Prompt, d.Prompt)
 	}
+	if cfg.Colors.Data != d.Data {
+		t.Fatalf("Data color mismatch: got %q want %q", cfg.Colors.Data, d.Data)
+	}
+	if cfg.Colors.Divider != d.Divider {
+		t.Fatalf("Divider color mismatch: got %q want %q", cfg.Colors.Divider, d.Divider)
+	}
 }
 
 func TestDefaultConfigTUIDefaults(t *testing.T) {
@@ -132,5 +138,29 @@ func TestConfigFromFileMissingReturnsError(t *testing.T) {
 	_, err := ConfigFromFile("/nonexistent/tui.config.toml")
 	if err == nil {
 		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestConfigFromFileInvalidColorIndexReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tui.config.toml")
+	content := `
+[colors]
+menu = -1
+title = 999
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := ConfigFromFile(path)
+	if err != nil {
+		t.Fatalf("ConfigFromFile: %v", err)
+	}
+	if cfg.Colors.Menu != "" {
+		t.Fatalf("expected empty Menu color for out-of-range index, got %q", cfg.Colors.Menu)
+	}
+	if cfg.Colors.Title != "" {
+		t.Fatalf("expected empty Title color for out-of-range index, got %q", cfg.Colors.Title)
 	}
 }
