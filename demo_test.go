@@ -2,6 +2,7 @@ package tui
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -29,21 +30,22 @@ func TestVisualFlatHelpers(t *testing.T) {
 	demoConfig(t)
 
 	t.Log("── flat helpers ──")
-	DividerRune(48, '=')
-	MenuItem(1, "selected item", true)
-	MenuItem(2, "normal item", false)
-	DividerRune(48, '-')
-	Field("host", "localhost:8080")
-	KeyHint("q", "quit")
-	KeyHint("r", "refresh")
-	DividerRune(48, '-')
-	InputLine("search> ", "foo", true)
-	InputLine("filter> ", "bar", false)
-	DividerRune(48, '-')
-	StatusInfo("everything is fine")
-	StatusWarn("something looks off")
-	StatusError("something broke")
-	DividerRune(48, '=')
+	nl := func() { fmt.Fprintln(os.Stdout) }
+	DividerRune(48, '='); nl()
+	MenuItem(1, "selected item", true); nl()
+	MenuItem(2, "normal item", false); nl()
+	DividerRune(48, '-'); nl()
+	Field("host", "localhost:8080"); nl()
+	KeyHint("q", "quit"); nl()
+	KeyHint("r", "refresh"); nl()
+	DividerRune(48, '-'); nl()
+	InputLine("search> ", "foo", true); nl()
+	InputLine("filter> ", "bar", false); nl()
+	DividerRune(48, '-'); nl()
+	StatusInfo("everything is fine"); nl()
+	StatusWarn("something looks off"); nl()
+	StatusError("something broke"); nl()
+	DividerRune(48, '='); nl()
 }
 
 // TestVisualComponents renders three full scenes to stdout for visual inspection.
@@ -103,17 +105,19 @@ func TestVisualComponents(t *testing.T) {
 	tui.MenuTitle(&TitleParams{Text: "Component Reference"})
 	tui.Divider(&DividerParams{Rune: '='})
 
+	nl := func() { fmt.Fprintln(os.Stdout) }
+
 	// TUI.MenuTitle(p *TitleParams)
 	//   TitleParams{Text string, Width int}
-	Field("MenuTitle", "TitleParams{Text, Width}")
+	Field("MenuTitle", "TitleParams{Text, Width}"); nl()
 	tui.MenuTitle(&TitleParams{Text: "Example Title"})
 	tui.Divider(&DividerParams{})
 
 	// TUI.Menu(p *MenuParams)
 	//   MenuParams{Items []MenuEntry, Width int}
 	//   MenuEntry{Label string, Selected bool}
-	Field("Menu", "MenuParams{Items []MenuEntry, Width}")
-	Field("MenuEntry", "{Label, Selected}")
+	Field("Menu", "MenuParams{Items []MenuEntry, Width}"); nl()
+	Field("MenuEntry", "{Label, Selected}"); nl()
 	tui.Menu(&MenuParams{Items: []MenuEntry{
 		{Label: "Selected item", Selected: true},
 		{Label: "Normal item", Selected: false},
@@ -122,7 +126,7 @@ func TestVisualComponents(t *testing.T) {
 
 	// TUI.Selector(p *SelectorParams)
 	//   SelectorParams{Label string, Items []string, Current int, Width int}
-	Field("Selector", "SelectorParams{Label, Items []string, Current, Width}")
+	Field("Selector", "SelectorParams{Label, Items []string, Current, Width}"); nl()
 	tui.Selector(&SelectorParams{
 		Label:   "example",
 		Items:   []string{"option-a", "option-b", "option-c"},
@@ -132,14 +136,14 @@ func TestVisualComponents(t *testing.T) {
 
 	// TUI.Input(p *InputParams)
 	//   InputParams{Label string, Value string, Active bool, Width int}
-	Field("Input", "InputParams{Label, Value, Active, Width}")
+	Field("Input", "InputParams{Label, Value, Active, Width}"); nl()
 	tui.Input(&InputParams{Label: "active", Value: "typing", Active: true})
 	tui.Input(&InputParams{Label: "inactive", Value: "static", Active: false})
 	tui.Divider(&DividerParams{})
 
 	// TUI.Divider(p *DividerParams)
 	//   DividerParams{Rune rune, Width int}
-	Field("Divider", "DividerParams{Rune, Width}")
+	Field("Divider", "DividerParams{Rune, Width}"); nl()
 	tui.Divider(&DividerParams{Rune: '~', Width: 20})
 	tui.Divider(&DividerParams{})
 
@@ -147,31 +151,31 @@ func TestVisualComponents(t *testing.T) {
 	tui.MenuTitle(&TitleParams{Text: "Flat Helpers"})
 	tui.Divider(&DividerParams{})
 
-	Field("MenuItem", "MenuItem(index int, label string, selected bool)")
-	MenuItem(1, "example", true)
-	MenuItem(2, "example", false)
+	Field("MenuItem", "MenuItem(index int, label string, selected bool)"); nl()
+	MenuItem(1, "example", true); nl()
+	MenuItem(2, "example", false); nl()
 
-	Field("Field", "Field(label string, value any)")
-	Field("key", "value")
+	Field("Field", "Field(label string, value any)"); nl()
+	Field("key", "value"); nl()
 
-	Field("KeyHint", "KeyHint(key, desc string)")
-	KeyHint("q", "quit")
+	Field("KeyHint", "KeyHint(key, desc string)"); nl()
+	KeyHint("q", "quit"); nl()
 
-	Field("InputLine", "InputLine(prefix, value string, active bool)")
-	InputLine("prompt> ", "text", true)
-	InputLine("prompt> ", "text", false)
+	Field("InputLine", "InputLine(prefix, value string, active bool)"); nl()
+	InputLine("prompt> ", "text", true); nl()
+	InputLine("prompt> ", "text", false); nl()
 
-	Field("StatusInfo", "StatusInfo(msg string)")
-	StatusInfo("info message")
-	Field("StatusWarn", "StatusWarn(msg string)")
-	StatusWarn("warning message")
-	Field("StatusError", "StatusError(msg string)")
-	StatusError("error message")
+	Field("StatusInfo", "StatusInfo(msg string)"); nl()
+	StatusInfo("info message"); nl()
+	Field("StatusWarn", "StatusWarn(msg string)"); nl()
+	StatusWarn("warning message"); nl()
+	Field("StatusError", "StatusError(msg string)"); nl()
+	StatusError("error message"); nl()
 
-	Field("Divider", "Divider(width int)")
-	Divider(20)
-	Field("DividerRune", "DividerRune(width int, r rune)")
-	DividerRune(20, '*')
+	Field("Divider", "Divider(width int)"); nl()
+	Divider(20); nl()
+	Field("DividerRune", "DividerRune(width int, r rune)"); nl()
+	DividerRune(20, '*'); nl()
 
 	tui.Divider(&DividerParams{Rune: '='})
 
@@ -221,11 +225,11 @@ func TestVisualTreeView(t *testing.T) {
 		testNode{key: "docs/readme.md", label: "readme.md", parent: "docs"},
 	}
 
-	Field("TreeView", "TreeViewParams{Nodes []TreeNode, Width, ShowIndex}")
+	Field("TreeView", "TreeViewParams{Nodes []TreeNode, Width, ShowIndex}"); fmt.Fprintln(os.Stdout)
 	tui.TreeView(&TreeViewParams{Nodes: nodes})
 	tui.Divider(&DividerParams{})
 
-	Field("TreeView (ShowIndex)", "ShowIndex: true")
+	Field("TreeView (ShowIndex)", "ShowIndex: true"); fmt.Fprintln(os.Stdout)
 	tui.TreeView(&TreeViewParams{Nodes: nodes, ShowIndex: true})
 	tui.Divider(&DividerParams{Rune: '='})
 }
@@ -242,7 +246,7 @@ func TestVisualProgressBar(t *testing.T) {
 	tui.MenuTitle(&TitleParams{Text: "ProgressBar"})
 	tui.Divider(&DividerParams{})
 
-	Field("ProgressBar", "NewProgressBar(dst, ProgressBarParams{...})")
+	Field("ProgressBar", "NewProgressBar(dst, ProgressBarParams{...})"); fmt.Fprintln(os.Stdout)
 	pb := NewProgressBar(&bytes.Buffer{}, ProgressBarParams{
 		Label:     "upload",
 		Total:     1024 * 1024,
@@ -273,7 +277,7 @@ func TestVisualOperationSummary(t *testing.T) {
 	tui.Divider(&DividerParams{})
 
 	// OK case
-	Field("OperationSummary", "OK=true")
+	Field("OperationSummary", "OK=true"); fmt.Fprintln(os.Stdout)
 	pt := NewPhaseTimer()
 	pt.Begin("connect")
 	time.Sleep(10 * time.Millisecond)
@@ -297,7 +301,7 @@ func TestVisualOperationSummary(t *testing.T) {
 	tui.Divider(&DividerParams{})
 
 	// FAILED case
-	Field("OperationSummary", "OK=false")
+	Field("OperationSummary", "OK=false"); fmt.Fprintln(os.Stdout)
 	tui.OperationSummary(&OperationSummaryParams{
 		Title: "Database Migration",
 		OK:    false,
