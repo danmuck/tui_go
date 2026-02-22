@@ -32,6 +32,15 @@ type TitleParams struct {
 func (t TUI) MenuTC(p *MenuParams) {
 	cfg := Configured()
 
+	// Find the widest label so we can right-align all labels.
+	maxLabelWidth := 0
+	for _, entry := range p.Items {
+		w := utf8.RuneCountInString(entry.Label)
+		if w > maxLabelWidth {
+			maxLabelWidth = w
+		}
+	}
+
 	lines := make([]blockLine, len(p.Items))
 	for i, entry := range p.Items {
 		color := cfg.Colors.Menu
@@ -40,7 +49,7 @@ func (t TUI) MenuTC(p *MenuParams) {
 			color = cfg.Colors.Title
 			prefix = cfg.TUI.MenuSelectedPrefix
 		}
-		plain := fmt.Sprintf("%s %*d) %s", prefix, cfg.TUI.MenuIndexWidth, i+1, entry.Label)
+		plain := fmt.Sprintf("%s %*d) %*s", prefix, cfg.TUI.MenuIndexWidth, i+1, maxLabelWidth, entry.Label)
 		colored := smplog.Colorize(color, plain, cfg.NoColor)
 		lines[i] = blockLine{colored: colored, plainWidth: utf8.RuneCountInString(plain)}
 	}
