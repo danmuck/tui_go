@@ -93,6 +93,29 @@ func writeComposite(cfg Config, line string, plainWidth int) (int, error) {
 	return fmt.Fprintln(os.Stdout, output)
 }
 
+// blockLine holds a pre-colorized line and its visible rune count.
+type blockLine struct {
+	colored    string
+	plainWidth int
+}
+
+// writeBlock renders lines as a left-aligned block. When centering is active,
+// all lines are padded to the widest line's width so they share the same left margin.
+func writeBlock(cfg Config, lines []blockLine) {
+	blockWidth := 0
+	for _, l := range lines {
+		if l.plainWidth > blockWidth {
+			blockWidth = l.plainWidth
+		}
+	}
+	for _, l := range lines {
+		if l.plainWidth < blockWidth {
+			l.colored += strings.Repeat(" ", blockWidth-l.plainWidth)
+		}
+		writeComposite(cfg, l.colored, blockWidth) //nolint:errcheck
+	}
+}
+
 // Menu renders a list of MenuEntry items to stdout.
 // Selected entries use title color; others use menu color.
 // When centered, all items share the same left margin so their prefix markers
@@ -101,14 +124,7 @@ func (TUI) Menu(p *MenuParams) {
 	cfg := Configured()
 	width := effectiveWidth(p.Width, cfg)
 
-	// Pre-compute plain strings and find the widest one so every item can be
-	// right-padded to the same width before centering.
-	type row struct {
-		plain string
-		color string
-	}
-	rows := make([]row, len(p.Items))
-	blockWidth := 0
+	lines := make([]blockLine, len(p.Items))
 	for i, entry := range p.Items {
 		color := cfg.Colors.Menu
 		prefix := cfg.TUI.MenuUnselectedPrefix
@@ -117,17 +133,14 @@ func (TUI) Menu(p *MenuParams) {
 			prefix = cfg.TUI.MenuSelectedPrefix
 		}
 		plain := fmt.Sprintf("%s %*d) %s", prefix, cfg.TUI.MenuIndexWidth, i+1, entry.Label)
-		rows[i] = row{plain: plain, color: color}
-		if n := utf8.RuneCountInString(plain); n > blockWidth {
-			blockWidth = n
+		if width > 0 {
+			plain = Clip(width, plain)
 		}
+		colored := smplog.Colorize(color, plain, cfg.NoColor)
+		lines[i] = blockLine{colored: colored, plainWidth: utf8.RuneCountInString(plain)}
 	}
 
-	for _, r := range rows {
-		// Pad to blockWidth so writeComponent uses a consistent centering anchor.
-		padded := PadRight(blockWidth, r.plain)
-		writeComponent(cfg, r.color, padded, width) //nolint:errcheck
-	}
+	writeBlock(cfg, lines)
 }
 
 // MenuTitle renders a title string to stdout using the title color.
