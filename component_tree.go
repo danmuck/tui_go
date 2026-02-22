@@ -34,7 +34,6 @@ type TreeViewParams struct {
 // Nodes are grouped by TreeParent(); siblings are sorted by TreeKey().
 func (t TUI) TreeViewTC(p *TreeViewParams) []TreeViewEntry {
 	cfg := Configured()
-	width := effectiveWidth(p.Width, cfg)
 
 	// Build parent → children map
 	children := make(map[string][]TreeNode)
@@ -88,9 +87,6 @@ func (t TUI) TreeViewTC(p *TreeViewParams) []TreeViewEntry {
 			plain = fmt.Sprintf("%3d  %s%s", e.Index, e.Prefix, e.Node.TreeLabel())
 		} else {
 			plain = e.Prefix + e.Node.TreeLabel()
-		}
-		if width > 0 {
-			plain = Clip(width, plain)
 		}
 		colored := smplog.Colorize(cfg.Colors.Data, plain, cfg.NoColor)
 		lines[i] = blockLine{colored: colored, plainWidth: utf8.RuneCountInString(plain)}

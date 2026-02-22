@@ -26,14 +26,6 @@ func (t TUI) SelectorTC(p *SelectorParams) {
 	}
 
 	label := p.Label
-	width := effectiveWidth(p.Width, cfg)
-	if width > 0 {
-		// Reserve space for ": < " (4) + " >" (2) = 6 chars around current
-		labelMax := max(width-utf8.RuneCountInString(current)-6, 0)
-		label = Clip(labelMax, label)
-		remaining := max(width-utf8.RuneCountInString(label)-4, 0) // ": < " = 4
-		current = Clip(remaining-2, current)                        // " >" = 2
-	}
 
 	plainWidth := utf8.RuneCountInString(label) + utf8.RuneCountInString(current) + 6 // ": < " + " >"
 	labelText := smplog.Colorize(cfg.Colors.Prompt, label, cfg.NoColor)

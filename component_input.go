@@ -22,16 +22,6 @@ func (t TUI) InputTC(p *InputParams) {
 	cfg := Configured()
 
 	value := p.Value
-	width := effectiveWidth(p.Width, cfg)
-	if width > 0 {
-		labelRunes := utf8.RuneCountInString(p.Label) + 2 // ": " = 2
-		cursorRunes := 0
-		if p.Active {
-			cursorRunes = utf8.RuneCountInString(cfg.TUI.InputCursor)
-		}
-		value = Clip(max(width-labelRunes-cursorRunes, 0), value)
-	}
-
 	cursorStr := ""
 	if p.Active {
 		cursorStr = cfg.TUI.InputCursor
@@ -47,5 +37,9 @@ func (t TUI) InputTC(p *InputParams) {
 	} else {
 		line = fmt.Sprintf("%s: %s", labelText, valueText)
 	}
-	t.writeComposite(cfg, line, plainWidth) //nolint:errcheck
+	if p.Active {
+		t.writeCompositeRaw(cfg, line, plainWidth) //nolint:errcheck
+	} else {
+		t.writeComposite(cfg, line, plainWidth) //nolint:errcheck
+	}
 }

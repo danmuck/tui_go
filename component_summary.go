@@ -93,7 +93,6 @@ type OperationSummaryParams struct {
 // and optional phase timing breakdown.
 func (t TUI) OperationSummaryTC(p *OperationSummaryParams) {
 	cfg := Configured()
-	width := effectiveWidth(p.Width, cfg)
 
 	// Title line: "  Title  [OK]" or "  Title  [FAILED]"
 	var tag, tagColor string
@@ -113,10 +112,6 @@ func (t TUI) OperationSummaryTC(p *OperationSummaryParams) {
 	titleColored := smplog.Colorize(cfg.Colors.Title, p.Title+"  ", cfg.NoColor) +
 		smplog.Colorize(tagColor, tag, cfg.NoColor)
 	titleWidth := utf8.RuneCountInString(titlePlain)
-	if width > 0 {
-		titlePlain = Clip(width, titlePlain)
-		titleWidth = utf8.RuneCountInString(titlePlain)
-	}
 	lines = append(lines, blockLine{colored: titleColored, plainWidth: titleWidth})
 
 	// Fields
@@ -126,10 +121,6 @@ func (t TUI) OperationSummaryTC(p *OperationSummaryParams) {
 		valueText := smplog.Colorize(cfg.Colors.Data, f.Value, cfg.NoColor)
 		line := fmt.Sprintf("%s: %s", labelText, valueText)
 		plainWidth := utf8.RuneCountInString(plain)
-		if width > 0 {
-			plain = Clip(width, plain)
-			plainWidth = utf8.RuneCountInString(plain)
-		}
 		lines = append(lines, blockLine{colored: line, plainWidth: plainWidth})
 	}
 
@@ -141,9 +132,6 @@ func (t TUI) OperationSummaryTC(p *OperationSummaryParams) {
 			lines = append(lines, blockLine{colored: "", plainWidth: 0})
 			// Header
 			headerPlain := "  Phases:"
-			if width > 0 {
-				headerPlain = Clip(width, headerPlain)
-			}
 			headerColored := smplog.Colorize(cfg.Colors.Title, headerPlain, cfg.NoColor)
 			lines = append(lines, blockLine{colored: headerColored, plainWidth: utf8.RuneCountInString(headerPlain)})
 			// Phase rows
@@ -157,9 +145,6 @@ func (t TUI) OperationSummaryTC(p *OperationSummaryParams) {
 			}
 			// Total
 			totalPlain := fmt.Sprintf("    Total  %s", p.Timer.Elapsed().Round(time.Millisecond))
-			if width > 0 {
-				totalPlain = Clip(width, totalPlain)
-			}
 			totalColored := smplog.Colorize(cfg.Colors.Data, totalPlain, cfg.NoColor)
 			lines = append(lines, blockLine{colored: totalColored, plainWidth: utf8.RuneCountInString(totalPlain)})
 		}

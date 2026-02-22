@@ -39,6 +39,16 @@ func (t TUI) writeComponent(cfg Config, color, plainContent string, width int) (
 // line must already be fully colorized. plainWidth is the visible rune count of
 // line (without ANSI escape bytes) and is used for centering math.
 func (t TUI) writeComposite(cfg Config, line string, plainWidth int) (int, error) {
+	n, err := t.writeCompositeRaw(cfg, line, plainWidth)
+	if err != nil {
+		return n, err
+	}
+	n2, err := smplog.Fprintln(t.w, "")
+	return n + n2, err
+}
+
+// writeCompositeRaw applies centering but does not append a trailing newline.
+func (t TUI) writeCompositeRaw(cfg Config, line string, plainWidth int) (int, error) {
 	var output string
 	if cfg.TUI.Centered && cfg.TUI.MaxWidth > 0 {
 		pad := max(cfg.TUI.MaxWidth-plainWidth, 0)
@@ -48,7 +58,7 @@ func (t TUI) writeComposite(cfg Config, line string, plainWidth int) (int, error
 	} else {
 		output = line
 	}
-	return smplog.Fprintln(t.w, output)
+	return smplog.Fprintf(t.w, "%s", output)
 }
 
 // blockLine holds a pre-colorized line and its visible rune count.
