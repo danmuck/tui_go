@@ -7,7 +7,7 @@ import (
 	smplog "github.com/danmuck/smplog"
 )
 
-// InputParams configures TUI.Input.
+// InputParams configures TUI.InputTC.
 type InputParams struct {
 	Label  string
 	Value  string
@@ -15,10 +15,10 @@ type InputParams struct {
 	Width  int
 }
 
-// Input renders a "label: value[cursor]" input row to stdout.
+// InputTC renders a "label: value[cursor]" input row.
 // It uses prompt color for the label and data color for the value.
 // When Active is true, the configured cursor character is appended.
-func (TUI) Input(p *InputParams) {
+func (t TUI) InputTC(p *InputParams) {
 	cfg := Configured()
 
 	value := p.Value
@@ -47,5 +47,5 @@ func (TUI) Input(p *InputParams) {
 	} else {
 		line = fmt.Sprintf("%s: %s", labelText, valueText)
 	}
-	writeComposite(cfg, line, plainWidth) //nolint:errcheck
+	t.writeComposite(cfg, line, plainWidth) //nolint:errcheck
 }

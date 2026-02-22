@@ -13,23 +13,23 @@ type MenuEntry struct {
 	Selected bool
 }
 
-// MenuParams configures TUI.Menu.
+// MenuParams configures TUI.MenuTC.
 type MenuParams struct {
 	Items []MenuEntry
 	Width int // 0 = TUIConfig.MaxWidth
 }
 
-// TitleParams configures TUI.MenuTitle.
+// TitleParams configures TUI.MenuTitleTC.
 type TitleParams struct {
 	Text  string
 	Width int
 }
 
-// Menu renders a list of MenuEntry items to stdout.
+// MenuTC renders a list of MenuEntry items.
 // Selected entries use title color; others use menu color.
 // When centered, all items share the same left margin so their prefix markers
 // stay visually aligned as a block.
-func (TUI) Menu(p *MenuParams) {
+func (t TUI) MenuTC(p *MenuParams) {
 	cfg := Configured()
 	width := effectiveWidth(p.Width, cfg)
 
@@ -49,13 +49,13 @@ func (TUI) Menu(p *MenuParams) {
 		lines[i] = blockLine{colored: colored, plainWidth: utf8.RuneCountInString(plain)}
 	}
 
-	writeBlock(cfg, lines)
+	t.writeBlock(cfg, lines)
 }
 
-// MenuTitle renders a title string to stdout using the title color.
-func (TUI) MenuTitle(p *TitleParams) {
+// MenuTitleTC renders a title string using the title color.
+func (t TUI) MenuTitleTC(p *TitleParams) {
 	cfg := Configured()
 	width := effectiveWidth(p.Width, cfg)
 	text := cfg.TUI.MenuTitlePrefix + p.Text + cfg.TUI.MenuTitlePostfix
-	writeComponent(cfg, cfg.Colors.Title, text, width) //nolint:errcheck
+	t.writeComponent(cfg, cfg.Colors.Title, text, width) //nolint:errcheck
 }

@@ -2,32 +2,15 @@ package tui
 
 import (
 	"bytes"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
 	smplog "github.com/danmuck/smplog"
 )
 
-// captureStdout redirects os.Stdout for the duration of fn and returns
-// everything written to it as a string.
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("pipe: %v", err)
-	}
-	orig := os.Stdout
-	os.Stdout = w
-	fn()
-	w.Close()
-	os.Stdout = orig
+func newTestTUI() (TUI, *bytes.Buffer) {
 	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r); err != nil {
-		t.Fatalf("read pipe: %v", err)
-	}
-	return buf.String()
+	return NewTUI(&buf), &buf
 }
 
 func TestClipPadCenter(t *testing.T) {
@@ -53,11 +36,11 @@ func TestWriteAtMovesCursorAndColorizes(t *testing.T) {
 		Colors:  ColorConfig{Menu: smplog.StyleColor256(14)},
 	})
 
-	out := captureStdout(t, func() {
-		if _, err := WriteAt(3, 5, Configured().Colors.Menu, "node:%d", 7); err != nil {
-			t.Fatalf("WriteAt: %v", err)
-		}
-	})
+	tui, buf := newTestTUI()
+	if _, err := tui.WriteAtTERM(3, 5, Configured().Colors.Menu, "node:%d", 7); err != nil {
+		t.Fatalf("WriteAtTERM: %v", err)
+	}
+	out := buf.String()
 
 	if !strings.Contains(out, "\x1b[3;5H") {
 		t.Fatalf("expected cursor move in output: %q", out)
@@ -78,9 +61,9 @@ func TestWriteAtRespectsNoColor(t *testing.T) {
 		Colors:  ColorConfig{Menu: smplog.StyleColor256(14)},
 	})
 
-	out := captureStdout(t, func() {
-		WriteAt(1, 1, Configured().Colors.Menu, "plain") //nolint:errcheck
-	})
+	tui, buf := newTestTUI()
+	tui.WriteAtTERM(1, 1, Configured().Colors.Menu, "plain") //nolint:errcheck
+	out := buf.String()
 
 	if strings.Contains(out, "\x1b[38;5;14m") {
 		t.Fatalf("expected no color with NoColor=true: %q", out)
@@ -108,9 +91,9 @@ func TestMenuItemSelectionUsesTitleColor(t *testing.T) {
 		},
 	})
 
-	out := captureStdout(t, func() {
-		MenuItem(2, "services", true) //nolint:errcheck
-	})
+	tui, buf := newTestTUI()
+	tui.MenuItemFU(2, "services", true) //nolint:errcheck
+	out := buf.String()
 
 	if !strings.Contains(out, "\x1b[38;5;15m") {
 		t.Fatalf("expected selected title color in output: %q", out)
@@ -123,14 +106,15 @@ func TestMenuItemSelectionUsesTitleColor(t *testing.T) {
 func TestBeginEndFrameWritesExpectedSequences(t *testing.T) {
 	orig := Configured()
 	t.Cleanup(func() { Configure(orig) })
-	out := captureStdout(t, func() {
-		if err := BeginFrame(); err != nil {
-			t.Fatalf("BeginFrame: %v", err)
-		}
-		if err := EndFrame(); err != nil {
-			t.Fatalf("EndFrame: %v", err)
-		}
-	})
+
+	tui, buf := newTestTUI()
+	if err := tui.BeginFrameTERM(); err != nil {
+		t.Fatalf("BeginFrameTERM: %v", err)
+	}
+	if err := tui.EndFrameTERM(); err != nil {
+		t.Fatalf("EndFrameTERM: %v", err)
+	}
+	out := buf.String()
 
 	required := []string{
 		"\x1b[?1049h",
@@ -159,11 +143,11 @@ func TestKeyHintFieldAndInputLineNoColor(t *testing.T) {
 		TUI: TUIConfig{InputCursor: "|"},
 	})
 
-	out := captureStdout(t, func() {
-		KeyHint("q", "quit")            //nolint:errcheck
-		Field("mode", "diag")           //nolint:errcheck
-		InputLine("select> ", "2", true) //nolint:errcheck
-	})
+	tui, buf := newTestTUI()
+	tui.KeyHintFU("q", "quit")            //nolint:errcheck
+	tui.FieldFU("mode", "diag")           //nolint:errcheck
+	tui.InputLineFU("select> ", "2", true) //nolint:errcheck
+	out := buf.String()
 
 	if strings.Contains(out, "\x1b[") {
 		t.Fatalf("expected no ANSI with NoColor=true: %q", out)

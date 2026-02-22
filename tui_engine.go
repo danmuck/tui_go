@@ -2,60 +2,83 @@ package tui
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"unicode/utf8"
 
 	smplog "github.com/danmuck/smplog"
 )
 
-// EnterAltScreen switches the terminal to an alternate screen buffer.
-func EnterAltScreen() (int, error) {
-	return writeANSI("\033[?1049h")
+// --- Terminal control (TERM suffix) ---
+
+func (t TUI) writeANSI(seq string) (int, error) {
+	return smplog.Fprint(t.w, seq)
 }
 
-// ExitAltScreen returns the terminal to the main screen buffer.
-func ExitAltScreen() (int, error) {
-	return writeANSI("\033[?1049l")
+// EnterAltScreenTERM switches the terminal to an alternate screen buffer.
+func (t TUI) EnterAltScreenTERM() (int, error) { return t.writeANSI("\033[?1049h") }
+
+// ExitAltScreenTERM returns the terminal to the main screen buffer.
+func (t TUI) ExitAltScreenTERM() (int, error) { return t.writeANSI("\033[?1049l") }
+
+// HideCursorTERM hides the terminal cursor.
+func (t TUI) HideCursorTERM() (int, error) { return t.writeANSI("\033[?25l") }
+
+// ShowCursorTERM shows the terminal cursor.
+func (t TUI) ShowCursorTERM() (int, error) { return t.writeANSI("\033[?25h") }
+
+// MoveToTERM moves the cursor to a 1-based row/column position.
+func (t TUI) MoveToTERM(row, col int) (int, error) {
+	return t.writeANSI(fmt.Sprintf("\033[%d;%dH", maxOne(row), maxOne(col)))
 }
 
-// HideCursor hides the terminal cursor.
-func HideCursor() (int, error) {
-	return writeANSI("\033[?25l")
-}
+// ClearScreenTERM clears the full terminal viewport.
+func (t TUI) ClearScreenTERM() (int, error) { return t.writeANSI("\033[2J") }
 
-// ShowCursor shows the terminal cursor.
-func ShowCursor() (int, error) {
-	return writeANSI("\033[?25h")
-}
+// ClearLineTERM clears the current line and returns the cursor to column 1.
+func (t TUI) ClearLineTERM() (int, error) { return t.writeANSI("\033[2K\r") }
 
-// MoveTo moves the cursor to a 1-based row/column position.
-func MoveTo(row, col int) (int, error) {
-	return writeANSI(fmt.Sprintf("\033[%d;%dH", maxOne(row), maxOne(col)))
-}
-
-// ClearScreen clears the full terminal viewport.
-func ClearScreen() (int, error) {
-	return writeANSI("\033[2J")
-}
-
-// ClearLine clears the current line and returns the cursor to column 1.
-func ClearLine() (int, error) {
-	return writeANSI("\033[2K\r")
-}
-
-// WriteAt moves to row/col and writes a formatted message.
-// Color output is controlled by Config.NoColor.
-// The returned byte count includes the ANSI cursor-position sequence and
-// should not be used as a visible-character-width measurement.
-func WriteAt(row, col int, color, format string, v ...any) (int, error) {
-	n, err := MoveTo(row, col)
+// WriteAtTERM moves to row/col and writes a formatted message.
+func (t TUI) WriteAtTERM(row, col int, color, format string, v ...any) (int, error) {
+	n, err := t.MoveToTERM(row, col)
 	if err != nil {
 		return n, err
 	}
-	m, err := smplog.Fcolorf(os.Stdout, color, format, v...)
+	m, err := smplog.Fcolorf(t.w, color, format, v...)
 	return n + m, err
 }
+
+// BeginFrameTERM switches to alt-screen, hides the cursor, clears, and positions at 1,1.
+func (t TUI) BeginFrameTERM() error {
+	if _, err := t.EnterAltScreenTERM(); err != nil {
+		return err
+	}
+	if _, err := t.HideCursorTERM(); err != nil {
+		return err
+	}
+	if _, err := t.ClearScreenTERM(); err != nil {
+		return err
+	}
+	_, err := t.MoveToTERM(1, 1)
+	return err
+}
+
+// EndFrameTERM restores the cursor and returns to the main screen.
+func (t TUI) EndFrameTERM() error {
+	if _, err := t.ShowCursorTERM(); err != nil {
+		return err
+	}
+	_, err := t.ExitAltScreenTERM()
+	return err
+}
+
+func maxOne(n int) int {
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
+// --- Text utilities (package-level) ---
 
 // Clip truncates s to width runes.
 func Clip(width int, s string) string {
@@ -99,9 +122,11 @@ func Center(width int, s string) string {
 	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
 }
 
-// MenuItem writes a compact menu entry.
+// --- Flat utility helpers (FU suffix) ---
+
+// MenuItemFU writes a compact menu entry.
 // Selected entries are rendered with title color; others use menu color.
-func MenuItem(index int, label string, selected bool) (int, error) {
+func (t TUI) MenuItemFU(index int, label string, selected bool) (int, error) {
 	cfg := Configured()
 	color := cfg.Colors.Menu
 	prefix := cfg.TUI.MenuUnselectedPrefix
@@ -110,105 +135,52 @@ func MenuItem(index int, label string, selected bool) (int, error) {
 		prefix = cfg.TUI.MenuSelectedPrefix
 	}
 	text := fmt.Sprintf("%s %*d) %s", prefix, cfg.TUI.MenuIndexWidth, index, label)
-	return smplog.Fcolorf(os.Stdout, color, "%s", text)
+	return smplog.Fcolorf(t.w, color, "%s", text)
 }
 
-// KeyHint writes a keyboard hint using prompt and data colors.
-func KeyHint(key, desc string) (int, error) {
+// KeyHintFU writes a keyboard hint using prompt and data colors.
+func (t TUI) KeyHintFU(key, desc string) (int, error) {
 	cfg := Configured()
 	keyText := smplog.Colorize(cfg.Colors.Prompt, key, cfg.NoColor)
 	descText := smplog.Colorize(cfg.Colors.Data, desc, cfg.NoColor)
-	return smplog.Fprintf(os.Stdout, "[%s] %s", keyText, descText)
+	return smplog.Fprintf(t.w, "[%s] %s", keyText, descText)
 }
 
-// Field writes a key/value pair using prompt and data colors.
-func Field(label string, value any) (int, error) {
+// FieldFU writes a key/value pair using prompt and data colors.
+func (t TUI) FieldFU(label string, value any) (int, error) {
 	cfg := Configured()
 	labelText := smplog.Colorize(cfg.Colors.Prompt, label, cfg.NoColor)
 	valueText := smplog.Colorize(cfg.Colors.Data, fmt.Sprint(value), cfg.NoColor)
-	return smplog.Fprintf(os.Stdout, "%s: %s", labelText, valueText)
+	return smplog.Fprintf(t.w, "%s: %s", labelText, valueText)
 }
 
-// StatusInfo writes an info-status message using the data color.
-func StatusInfo(msg string) (int, error) {
+// StatusInfoFU writes an info-status message using the data color.
+func (t TUI) StatusInfoFU(msg string) (int, error) {
 	cfg := Configured()
-	return smplog.Fcolorf(os.Stdout, cfg.Colors.Data, "%s", msg)
+	return smplog.Fcolorf(t.w, cfg.Colors.Data, "%s", msg)
 }
 
-// StatusWarn writes a warning-status message using the prompt color.
-func StatusWarn(msg string) (int, error) {
+// StatusWarnFU writes a warning-status message using the prompt color.
+func (t TUI) StatusWarnFU(msg string) (int, error) {
 	cfg := Configured()
-	return smplog.Fcolorf(os.Stdout, cfg.Colors.Prompt, "%s", msg)
+	return smplog.Fcolorf(t.w, cfg.Colors.Prompt, "%s", msg)
 }
 
-// StatusError writes an error-status message using the configured error color.
-func StatusError(msg string) (int, error) {
+// StatusErrorFU writes an error-status message using the configured error color.
+func (t TUI) StatusErrorFU(msg string) (int, error) {
 	cfg := Configured()
-	return smplog.Fcolorf(os.Stdout, cfg.Colors.Error, "%s", msg)
+	return smplog.Fcolorf(t.w, cfg.Colors.Error, "%s", msg)
 }
 
-// InputLine writes a compact prompt/value input row.
+// InputLineFU writes a compact prompt/value input row.
 // If active, the configured cursor character is appended.
-func InputLine(prefix, value string, active bool) (int, error) {
+func (t TUI) InputLineFU(prefix, value string, active bool) (int, error) {
 	cfg := Configured()
 	prefixText := smplog.Colorize(cfg.Colors.Prompt, prefix, cfg.NoColor)
 	valueText := smplog.Colorize(cfg.Colors.Data, value, cfg.NoColor)
 	if !active {
-		return smplog.Fprintf(os.Stdout, "%s%s", prefixText, valueText)
+		return smplog.Fprintf(t.w, "%s%s", prefixText, valueText)
 	}
 	cursor := smplog.Colorize(cfg.Colors.Prompt, cfg.TUI.InputCursor, cfg.NoColor)
-	return smplog.Fprintf(os.Stdout, "%s%s%s", prefixText, valueText, cursor)
-}
-
-// Divider writes a horizontal divider using '-' and the divider color.
-func Divider(width int) (int, error) {
-	return DividerRune(width, '-')
-}
-
-// DividerRune writes a horizontal divider using r and the divider color.
-func DividerRune(width int, r rune) (int, error) {
-	cfg := Configured()
-	if width <= 0 {
-		width = cfg.TUI.DividerWidth
-	}
-	if r == 0 {
-		r = '-'
-	}
-	line := strings.Repeat(string(r), width)
-	return smplog.Fcolorf(os.Stdout, cfg.Colors.Divider, "%s", line)
-}
-
-// BeginFrame switches to alt-screen, hides the cursor, clears, and positions at 1,1.
-func BeginFrame() error {
-	if _, err := EnterAltScreen(); err != nil {
-		return err
-	}
-	if _, err := HideCursor(); err != nil {
-		return err
-	}
-	if _, err := ClearScreen(); err != nil {
-		return err
-	}
-	_, err := MoveTo(1, 1)
-	return err
-}
-
-// EndFrame restores the cursor and returns to the main screen.
-func EndFrame() error {
-	if _, err := ShowCursor(); err != nil {
-		return err
-	}
-	_, err := ExitAltScreen()
-	return err
-}
-
-func writeANSI(seq string) (int, error) {
-	return smplog.Fprint(os.Stdout, seq)
-}
-
-func maxOne(n int) int {
-	if n < 1 {
-		return 1
-	}
-	return n
+	return smplog.Fprintf(t.w, "%s%s%s", prefixText, valueText, cursor)
 }

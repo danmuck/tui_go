@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"os"
+	"io"
 	"strings"
 	"unicode/utf8"
 
@@ -9,10 +9,12 @@ import (
 )
 
 // TUI is a stateless component renderer. Construct with NewTUI.
-type TUI struct{}
+type TUI struct {
+	w io.Writer
+}
 
 // NewTUI returns a new TUI renderer.
-func NewTUI() TUI { return TUI{} }
+func NewTUI(w io.Writer) TUI { return TUI{w: w} }
 
 // effectiveWidth resolves the layout width to apply.
 // Priority: paramWidth → cfg.TUI.MaxWidth → 0 (unconstrained).
@@ -27,19 +29,19 @@ func effectiveWidth(paramWidth int, cfg Config) int {
 }
 
 // writeComponent is the single choke-point for all single-color component output.
-// It clips, colorizes, optionally centers, then writes a line to stdout.
-func writeComponent(cfg Config, color, plainContent string, width int) (int, error) {
+// It clips, colorizes, optionally centers, then writes a line.
+func (t TUI) writeComponent(cfg Config, color, plainContent string, width int) (int, error) {
 	if width > 0 {
 		plainContent = Clip(width, plainContent)
 	}
 	colored := smplog.Colorize(color, plainContent, cfg.NoColor)
-	return writeComposite(cfg, colored, utf8.RuneCountInString(plainContent))
+	return t.writeComposite(cfg, colored, utf8.RuneCountInString(plainContent))
 }
 
 // writeComposite is the centering choke-point for multi-color component lines.
 // line must already be fully colorized. plainWidth is the visible rune count of
 // line (without ANSI escape bytes) and is used for centering math.
-func writeComposite(cfg Config, line string, plainWidth int) (int, error) {
+func (t TUI) writeComposite(cfg Config, line string, plainWidth int) (int, error) {
 	var output string
 	if cfg.TUI.Centered && cfg.TUI.MaxWidth > 0 {
 		pad := max(cfg.TUI.MaxWidth-plainWidth, 0)
@@ -49,7 +51,7 @@ func writeComposite(cfg Config, line string, plainWidth int) (int, error) {
 	} else {
 		output = line
 	}
-	return smplog.Fprintln(os.Stdout, output)
+	return smplog.Fprintln(t.w, output)
 }
 
 // blockLine holds a pre-colorized line and its visible rune count.
@@ -60,7 +62,7 @@ type blockLine struct {
 
 // writeBlock renders lines as a left-aligned block. When centering is active,
 // all lines are padded to the widest line's width so they share the same left margin.
-func writeBlock(cfg Config, lines []blockLine) {
+func (t TUI) writeBlock(cfg Config, lines []blockLine) {
 	blockWidth := 0
 	for _, l := range lines {
 		if l.plainWidth > blockWidth {
@@ -71,15 +73,15 @@ func writeBlock(cfg Config, lines []blockLine) {
 		if l.plainWidth < blockWidth {
 			l.colored += strings.Repeat(" ", blockWidth-l.plainWidth)
 		}
-		writeComposite(cfg, l.colored, blockWidth) //nolint:errcheck
+		t.writeComposite(cfg, l.colored, blockWidth) //nolint:errcheck
 	}
 }
 
-// Refresh clears the screen and moves the cursor to position (1, 1).
-func (TUI) Refresh() error {
-	if _, err := ClearScreen(); err != nil {
+// RefreshTERM clears the screen and moves the cursor to position (1, 1).
+func (t TUI) RefreshTERM() error {
+	if _, err := t.ClearScreenTERM(); err != nil {
 		return err
 	}
-	_, err := MoveTo(1, 1)
+	_, err := t.MoveToTERM(1, 1)
 	return err
 }

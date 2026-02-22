@@ -6,16 +6,17 @@ import (
 	smplog "github.com/danmuck/smplog"
 )
 
-// DividerParams configures TUI.Divider.
+// DividerParams configures TUI.DividerTC.
 type DividerParams struct {
 	Rune  rune // 0 = '-'
 	Width int  // 0 = TUIConfig.DividerWidth
 }
 
-// Divider renders a horizontal divider line to stdout using the divider color.
+// DividerTC renders a horizontal divider line using the divider color.
 // The divider width comes from DividerParams.Width, then TUIConfig.DividerWidth.
 // MaxWidth is only used as the centering axis, not as the divider length.
-func (TUI) Divider(p *DividerParams) {
+// Blank lines are printed before and after the divider for visual padding.
+func (t TUI) DividerTC(p *DividerParams) {
 	cfg := Configured()
 
 	r := p.Rune
@@ -28,7 +29,9 @@ func (TUI) Divider(p *DividerParams) {
 		width = cfg.TUI.DividerWidth
 	}
 
+	smplog.Fprintln(t.w, "")  // blank line before
 	plain := strings.Repeat(string(r), width)
 	colored := smplog.Colorize(cfg.Colors.Divider, plain, cfg.NoColor)
-	writeComposite(cfg, colored, width) //nolint:errcheck
+	t.writeComposite(cfg, colored, width) //nolint:errcheck
+	smplog.Fprintln(t.w, "")  // blank line after
 }

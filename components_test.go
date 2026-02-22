@@ -29,14 +29,14 @@ func TestTUIMenuRendersAllItems(t *testing.T) {
 		},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Menu(&MenuParams{
-			Items: []MenuEntry{
-				{Label: "alpha", Selected: true},
-				{Label: "beta", Selected: false},
-			},
-		})
+	tui, buf := newTestTUI()
+	tui.MenuTC(&MenuParams{
+		Items: []MenuEntry{
+			{Label: "alpha", Selected: true},
+			{Label: "beta", Selected: false},
+		},
 	})
+	out := buf.String()
 
 	// Both items should appear
 	if !strings.Contains(out, "alpha") {
@@ -74,13 +74,13 @@ func TestTUIMenuNoColor(t *testing.T) {
 		},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Menu(&MenuParams{
-			Items: []MenuEntry{
-				{Label: "item", Selected: false},
-			},
-		})
+	tui, buf := newTestTUI()
+	tui.MenuTC(&MenuParams{
+		Items: []MenuEntry{
+			{Label: "item", Selected: false},
+		},
 	})
+	out := buf.String()
 
 	if strings.Contains(out, "\x1b[") {
 		t.Fatalf("expected no ANSI escapes with NoColor=true: %q", out)
@@ -101,9 +101,9 @@ func TestTUIMenuTitlePrefixPostfix(t *testing.T) {
 		},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().MenuTitle(&TitleParams{Text: "Main Menu"})
-	})
+	tui, buf := newTestTUI()
+	tui.MenuTitleTC(&TitleParams{Text: "Main Menu"})
+	out := buf.String()
 
 	plain := smplog.StripANSI(out)
 	if !strings.Contains(plain, "[ Main Menu ]") {
@@ -121,9 +121,9 @@ func TestTUIMenuTitleUsesTitleColor(t *testing.T) {
 		},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().MenuTitle(&TitleParams{Text: "Main Menu"})
-	})
+	tui, buf := newTestTUI()
+	tui.MenuTitleTC(&TitleParams{Text: "Main Menu"})
+	out := buf.String()
 
 	if !strings.Contains(out, "\x1b[38;5;15m") {
 		t.Fatalf("expected title color escape in output: %q", out)
@@ -146,13 +146,13 @@ func TestTUISelectorRendersLabelAndCurrentItem(t *testing.T) {
 		},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Selector(&SelectorParams{
-			Label:   "mode",
-			Items:   []string{"a", "b", "c"},
-			Current: 1, // "b"
-		})
+	tui, buf := newTestTUI()
+	tui.SelectorTC(&SelectorParams{
+		Label:   "mode",
+		Items:   []string{"a", "b", "c"},
+		Current: 1, // "b"
 	})
+	out := buf.String()
 
 	plain := smplog.StripANSI(out)
 	if !strings.Contains(plain, "< b >") {
@@ -172,14 +172,13 @@ func TestTUISelectorOutOfBoundsCurrentIsEmpty(t *testing.T) {
 	t.Cleanup(func() { Configure(orig) })
 	Configure(Config{NoColor: true})
 
-	// Should not panic; current="" when index is out of bounds
-	out := captureStdout(t, func() {
-		NewTUI().Selector(&SelectorParams{
-			Label:   "opt",
-			Items:   []string{"x"},
-			Current: 99,
-		})
+	tui, buf := newTestTUI()
+	tui.SelectorTC(&SelectorParams{
+		Label:   "opt",
+		Items:   []string{"x"},
+		Current: 99,
 	})
+	out := buf.String()
 
 	// "< %s >" with empty string gives "< >"-style output (space on each side)
 	if !strings.Contains(out, "<") || !strings.Contains(out, ">") {
@@ -201,13 +200,13 @@ func TestTUIInputActiveRendersLabelValueCursor(t *testing.T) {
 		TUI: TUIConfig{InputCursor: "|"},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Input(&InputParams{
-			Label:  "name",
-			Value:  "dan",
-			Active: true,
-		})
+	tui, buf := newTestTUI()
+	tui.InputTC(&InputParams{
+		Label:  "name",
+		Value:  "dan",
+		Active: true,
 	})
+	out := buf.String()
 
 	plain := smplog.StripANSI(out)
 	if !strings.Contains(plain, "|") {
@@ -229,13 +228,13 @@ func TestTUIInputInactiveOmitsCursor(t *testing.T) {
 		TUI:     TUIConfig{InputCursor: "|"},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Input(&InputParams{
-			Label:  "name",
-			Value:  "dan",
-			Active: false,
-		})
+	tui, buf := newTestTUI()
+	tui.InputTC(&InputParams{
+		Label:  "name",
+		Value:  "dan",
+		Active: false,
 	})
+	out := buf.String()
 
 	plain := smplog.StripANSI(out)
 	if strings.Contains(plain, "|") {
@@ -256,11 +255,11 @@ func TestTUIDividerUsesConfigWidth(t *testing.T) {
 		TUI: TUIConfig{DividerWidth: 40},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Divider(&DividerParams{})
-	})
+	tui, buf := newTestTUI()
+	tui.DividerTC(&DividerParams{})
+	out := buf.String()
 
-	plain := strings.TrimRight(smplog.StripANSI(out), "\n")
+	plain := strings.TrimSpace(smplog.StripANSI(out))
 	if utf8.RuneCountInString(plain) != 40 {
 		t.Fatalf("expected divider rune count 40, got %d (%q)", utf8.RuneCountInString(plain), plain)
 	}
@@ -274,11 +273,11 @@ func TestTUIDividerParamWidthOverrides(t *testing.T) {
 		TUI:     TUIConfig{DividerWidth: 40},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Divider(&DividerParams{Width: 20})
-	})
+	tui, buf := newTestTUI()
+	tui.DividerTC(&DividerParams{Width: 20})
+	out := buf.String()
 
-	plain := strings.TrimRight(smplog.StripANSI(out), "\n")
+	plain := strings.TrimSpace(smplog.StripANSI(out))
 	if utf8.RuneCountInString(plain) != 20 {
 		t.Fatalf("expected divider rune count 20, got %d (%q)", utf8.RuneCountInString(plain), plain)
 	}
@@ -292,11 +291,11 @@ func TestTUIDividerCustomRune(t *testing.T) {
 		TUI:     TUIConfig{DividerWidth: 10},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Divider(&DividerParams{Rune: '='})
-	})
+	tui, buf := newTestTUI()
+	tui.DividerTC(&DividerParams{Rune: '='})
+	out := buf.String()
 
-	plain := strings.TrimRight(smplog.StripANSI(out), "\n")
+	plain := strings.TrimSpace(smplog.StripANSI(out))
 	if plain != strings.Repeat("=", 10) {
 		t.Fatalf("expected '=' repeated 10 times, got %q", plain)
 	}
@@ -320,23 +319,22 @@ func TestTreeViewFlatList(t *testing.T) {
 	t.Cleanup(func() { Configure(orig) })
 	Configure(Config{NoColor: true})
 
-	tui := NewTUI()
-	out := captureStdout(t, func() {
-		entries := tui.TreeView(&TreeViewParams{
-			Nodes: []TreeNode{
-				testNode{key: "b", label: "Bravo", parent: ""},
-				testNode{key: "a", label: "Alpha", parent: ""},
-				testNode{key: "c", label: "Charlie", parent: ""},
-			},
-		})
-		if len(entries) != 3 {
-			t.Fatalf("expected 3 entries, got %d", len(entries))
-		}
-		// Sorted by key
-		if entries[0].Node.TreeLabel() != "Alpha" {
-			t.Fatalf("expected Alpha first, got %s", entries[0].Node.TreeLabel())
-		}
+	tui, buf := newTestTUI()
+	entries := tui.TreeViewTC(&TreeViewParams{
+		Nodes: []TreeNode{
+			testNode{key: "b", label: "Bravo", parent: ""},
+			testNode{key: "a", label: "Alpha", parent: ""},
+			testNode{key: "c", label: "Charlie", parent: ""},
+		},
 	})
+	if len(entries) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(entries))
+	}
+	// Sorted by key
+	if entries[0].Node.TreeLabel() != "Alpha" {
+		t.Fatalf("expected Alpha first, got %s", entries[0].Node.TreeLabel())
+	}
+	out := buf.String()
 	if !strings.Contains(out, "Alpha") || !strings.Contains(out, "Bravo") {
 		t.Fatalf("expected labels in output: %q", out)
 	}
@@ -347,26 +345,25 @@ func TestTreeViewNested(t *testing.T) {
 	t.Cleanup(func() { Configure(orig) })
 	Configure(Config{NoColor: true})
 
-	tui := NewTUI()
-	out := captureStdout(t, func() {
-		entries := tui.TreeView(&TreeViewParams{
-			Nodes: []TreeNode{
-				testNode{key: "root", label: "Root", parent: ""},
-				testNode{key: "child1", label: "Child 1", parent: "root"},
-				testNode{key: "child2", label: "Child 2", parent: "root"},
-				testNode{key: "grandchild", label: "Grandchild", parent: "child1"},
-			},
-		})
-		if len(entries) != 4 {
-			t.Fatalf("expected 4 entries, got %d", len(entries))
-		}
-		if entries[0].Depth != 0 {
-			t.Fatalf("root depth should be 0, got %d", entries[0].Depth)
-		}
-		if entries[1].Depth != 1 {
-			t.Fatalf("child depth should be 1, got %d", entries[1].Depth)
-		}
+	tui, buf := newTestTUI()
+	entries := tui.TreeViewTC(&TreeViewParams{
+		Nodes: []TreeNode{
+			testNode{key: "root", label: "Root", parent: ""},
+			testNode{key: "child1", label: "Child 1", parent: "root"},
+			testNode{key: "child2", label: "Child 2", parent: "root"},
+			testNode{key: "grandchild", label: "Grandchild", parent: "child1"},
+		},
 	})
+	if len(entries) != 4 {
+		t.Fatalf("expected 4 entries, got %d", len(entries))
+	}
+	if entries[0].Depth != 0 {
+		t.Fatalf("root depth should be 0, got %d", entries[0].Depth)
+	}
+	if entries[1].Depth != 1 {
+		t.Fatalf("child depth should be 1, got %d", entries[1].Depth)
+	}
+	out := buf.String()
 	if !strings.Contains(out, "├─") || !strings.Contains(out, "└─") {
 		t.Fatalf("expected tree connectors in output: %q", out)
 	}
@@ -377,15 +374,14 @@ func TestTreeViewShowIndex(t *testing.T) {
 	t.Cleanup(func() { Configure(orig) })
 	Configure(Config{NoColor: true})
 
-	tui := NewTUI()
-	out := captureStdout(t, func() {
-		tui.TreeView(&TreeViewParams{
-			Nodes: []TreeNode{
-				testNode{key: "a", label: "Alpha", parent: ""},
-			},
-			ShowIndex: true,
-		})
+	tui, buf := newTestTUI()
+	tui.TreeViewTC(&TreeViewParams{
+		Nodes: []TreeNode{
+			testNode{key: "a", label: "Alpha", parent: ""},
+		},
+		ShowIndex: true,
 	})
+	out := buf.String()
 	if !strings.Contains(out, "  0") {
 		t.Fatalf("expected index 0 in output: %q", out)
 	}
@@ -402,16 +398,15 @@ func TestTreeViewCenteredBlockAlignment(t *testing.T) {
 		},
 	})
 
-	tui := NewTUI()
-	out := captureStdout(t, func() {
-		tui.TreeView(&TreeViewParams{
-			Nodes: []TreeNode{
-				testNode{key: "root", label: "Root", parent: ""},
-				testNode{key: "child1", label: "Child 1", parent: "root"},
-				testNode{key: "child2", label: "Child 2 has a longer label", parent: "root"},
-			},
-		})
+	tui, buf := newTestTUI()
+	tui.TreeViewTC(&TreeViewParams{
+		Nodes: []TreeNode{
+			testNode{key: "root", label: "Root", parent: ""},
+			testNode{key: "child1", label: "Child 1", parent: "root"},
+			testNode{key: "child2", label: "Child 2 has a longer label", parent: "root"},
+		},
 	})
+	out := buf.String()
 
 	// All lines should have the same left margin (leading spaces).
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
@@ -480,16 +475,15 @@ func TestOperationSummaryOK(t *testing.T) {
 		},
 	})
 
-	tui := NewTUI()
-	out := captureStdout(t, func() {
-		tui.OperationSummary(&OperationSummaryParams{
-			Title: "Deploy",
-			OK:    true,
-			Fields: []SummaryField{
-				{Label: "target", Value: "prod"},
-			},
-		})
+	tui, buf := newTestTUI()
+	tui.OperationSummaryTC(&OperationSummaryParams{
+		Title: "Deploy",
+		OK:    true,
+		Fields: []SummaryField{
+			{Label: "target", Value: "prod"},
+		},
 	})
+	out := buf.String()
 	if !strings.Contains(out, "[OK]") {
 		t.Fatalf("expected [OK] in output: %q", out)
 	}
@@ -510,13 +504,12 @@ func TestOperationSummaryFailed(t *testing.T) {
 		},
 	})
 
-	tui := NewTUI()
-	out := captureStdout(t, func() {
-		tui.OperationSummary(&OperationSummaryParams{
-			Title: "Deploy",
-			OK:    false,
-		})
+	tui, buf := newTestTUI()
+	tui.OperationSummaryTC(&OperationSummaryParams{
+		Title: "Deploy",
+		OK:    false,
 	})
+	out := buf.String()
 	if !strings.Contains(out, "[FAILED]") {
 		t.Fatalf("expected [FAILED] in output: %q", out)
 	}
@@ -537,17 +530,16 @@ func TestOperationSummaryCenteredBlockAlignment(t *testing.T) {
 		},
 	})
 
-	tui := NewTUI()
-	out := captureStdout(t, func() {
-		tui.OperationSummary(&OperationSummaryParams{
-			Title: "Deploy",
-			OK:    true,
-			Fields: []SummaryField{
-				{Label: "target", Value: "prod"},
-				{Label: "version", Value: "v1.2.3-beta.42"},
-			},
-		})
+	tui, buf := newTestTUI()
+	tui.OperationSummaryTC(&OperationSummaryParams{
+		Title: "Deploy",
+		OK:    true,
+		Fields: []SummaryField{
+			{Label: "target", Value: "prod"},
+			{Label: "version", Value: "v1.2.3-beta.42"},
+		},
 	})
+	out := buf.String()
 
 	// All lines should have the same total length (padded to blockWidth, then centered).
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
@@ -707,9 +699,9 @@ func TestTUIWidthClampsTruncates(t *testing.T) {
 		Colors:  ColorConfig{Title: smplog.StyleColor256(15)},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().MenuTitle(&TitleParams{Text: "Hello World", Width: 5})
-	})
+	tui, buf := newTestTUI()
+	tui.MenuTitleTC(&TitleParams{Text: "Hello World", Width: 5})
+	out := buf.String()
 
 	plain := strings.TrimRight(smplog.StripANSI(out), "\n")
 	if utf8.RuneCountInString(plain) != 5 {
@@ -728,9 +720,9 @@ func TestTUICenteringPadsContent(t *testing.T) {
 		TUI:     TUIConfig{MaxWidth: 20, Centered: true},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().MenuTitle(&TitleParams{Text: "Hi"})
-	})
+	tui, buf := newTestTUI()
+	tui.MenuTitleTC(&TitleParams{Text: "Hi"})
+	out := buf.String()
 
 	// Strip trailing newline for analysis
 	line := strings.TrimRight(smplog.StripANSI(out), "\n")
@@ -754,9 +746,9 @@ func TestTUICenteringRequiresMaxWidth(t *testing.T) {
 		TUI:     TUIConfig{MaxWidth: 0, Centered: true},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().MenuTitle(&TitleParams{Text: "Hi"})
-	})
+	tui, buf := newTestTUI()
+	tui.MenuTitleTC(&TitleParams{Text: "Hi"})
+	out := buf.String()
 
 	line := strings.TrimRight(smplog.StripANSI(out), "\n")
 	// Without MaxWidth, no padding should be added
@@ -773,13 +765,13 @@ func TestTUISelectorCenteringPadsContent(t *testing.T) {
 		TUI:     TUIConfig{MaxWidth: 30, Centered: true},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Selector(&SelectorParams{
-			Label:   "x",
-			Items:   []string{"y"},
-			Current: 0,
-		})
+	tui, buf := newTestTUI()
+	tui.SelectorTC(&SelectorParams{
+		Label:   "x",
+		Items:   []string{"y"},
+		Current: 0,
 	})
+	out := buf.String()
 
 	// "x: < y >" = 9 runes; padded to 30 total
 	line := strings.TrimRight(smplog.StripANSI(out), "\n")
@@ -800,13 +792,13 @@ func TestTUIInputCenteringPadsContent(t *testing.T) {
 		TUI:     TUIConfig{MaxWidth: 30, Centered: true, InputCursor: "|"},
 	})
 
-	out := captureStdout(t, func() {
-		NewTUI().Input(&InputParams{
-			Label:  "name",
-			Value:  "dan",
-			Active: true,
-		})
+	tui, buf := newTestTUI()
+	tui.InputTC(&InputParams{
+		Label:  "name",
+		Value:  "dan",
+		Active: true,
 	})
+	out := buf.String()
 
 	// "name: dan|" = 10 runes; padded to 30 total
 	line := strings.TrimRight(smplog.StripANSI(out), "\n")
@@ -820,11 +812,11 @@ func TestTUIInputCenteringPadsContent(t *testing.T) {
 }
 
 func TestTUIRefreshWritesClearAndMoveTo(t *testing.T) {
-	out := captureStdout(t, func() {
-		if err := NewTUI().Refresh(); err != nil {
-			t.Fatalf("refresh: %v", err)
-		}
-	})
+	tui, buf := newTestTUI()
+	if err := tui.RefreshTERM(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	out := buf.String()
 
 	if !strings.Contains(out, "\x1b[2J") {
 		t.Fatalf("expected clear screen sequence in output: %q", out)

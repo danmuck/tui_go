@@ -7,7 +7,7 @@ import (
 	smplog "github.com/danmuck/smplog"
 )
 
-// SelectorParams configures TUI.Selector.
+// SelectorParams configures TUI.SelectorTC.
 type SelectorParams struct {
 	Label   string
 	Items   []string
@@ -15,9 +15,9 @@ type SelectorParams struct {
 	Width   int
 }
 
-// Selector renders a "label: < current >" selector row to stdout.
+// SelectorTC renders a "label: < current >" selector row.
 // It uses prompt color for the label and data color for the current item.
-func (TUI) Selector(p *SelectorParams) {
+func (t TUI) SelectorTC(p *SelectorParams) {
 	cfg := Configured()
 
 	var current string
@@ -39,5 +39,5 @@ func (TUI) Selector(p *SelectorParams) {
 	labelText := smplog.Colorize(cfg.Colors.Prompt, label, cfg.NoColor)
 	currentText := smplog.Colorize(cfg.Colors.Data, current, cfg.NoColor)
 	line := fmt.Sprintf("%s: < %s >", labelText, currentText)
-	writeComposite(cfg, line, plainWidth) //nolint:errcheck
+	t.writeComposite(cfg, line, plainWidth) //nolint:errcheck
 }

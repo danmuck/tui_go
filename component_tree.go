@@ -23,16 +23,16 @@ type TreeViewEntry struct {
 	Index  int
 }
 
-// TreeViewParams configures TUI.TreeView.
+// TreeViewParams configures TUI.TreeViewTC.
 type TreeViewParams struct {
 	Nodes     []TreeNode
 	Width     int
 	ShowIndex bool
 }
 
-// TreeView renders a tree to stdout and returns the flattened entry list.
+// TreeViewTC renders a tree and returns the flattened entry list.
 // Nodes are grouped by TreeParent(); siblings are sorted by TreeKey().
-func (TUI) TreeView(p *TreeViewParams) []TreeViewEntry {
+func (t TUI) TreeViewTC(p *TreeViewParams) []TreeViewEntry {
 	cfg := Configured()
 	width := effectiveWidth(p.Width, cfg)
 
@@ -95,7 +95,7 @@ func (TUI) TreeView(p *TreeViewParams) []TreeViewEntry {
 		colored := smplog.Colorize(cfg.Colors.Data, plain, cfg.NoColor)
 		lines[i] = blockLine{colored: colored, plainWidth: utf8.RuneCountInString(plain)}
 	}
-	writeBlock(cfg, lines)
+	t.writeBlock(cfg, lines)
 
 	return entries
 }

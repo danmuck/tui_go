@@ -80,7 +80,7 @@ type SummaryField struct {
 	Value string
 }
 
-// OperationSummaryParams configures TUI.OperationSummary.
+// OperationSummaryParams configures TUI.OperationSummaryTC.
 type OperationSummaryParams struct {
 	Title  string
 	OK     bool
@@ -89,9 +89,9 @@ type OperationSummaryParams struct {
 	Width  int
 }
 
-// OperationSummary renders a titled summary block with status tag, fields,
+// OperationSummaryTC renders a titled summary block with status tag, fields,
 // and optional phase timing breakdown.
-func (TUI) OperationSummary(p *OperationSummaryParams) {
+func (t TUI) OperationSummaryTC(p *OperationSummaryParams) {
 	cfg := Configured()
 	width := effectiveWidth(p.Width, cfg)
 
@@ -165,5 +165,5 @@ func (TUI) OperationSummary(p *OperationSummaryParams) {
 		}
 	}
 
-	writeBlock(cfg, lines)
+	t.writeBlock(cfg, lines)
 }
