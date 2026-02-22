@@ -1,12 +1,17 @@
 package tui
 
 import (
+	"bytes"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	smplog "github.com/danmuck/smplog"
 )
+
+// ---------- Menu ----------
 
 func TestTUIMenuRendersAllItems(t *testing.T) {
 	orig := Configured()
@@ -128,6 +133,8 @@ func TestTUIMenuTitleUsesTitleColor(t *testing.T) {
 	}
 }
 
+// ---------- Selector ----------
+
 func TestTUISelectorRendersLabelAndCurrentItem(t *testing.T) {
 	orig := Configured()
 	t.Cleanup(func() { Configure(orig) })
@@ -179,6 +186,8 @@ func TestTUISelectorOutOfBoundsCurrentIsEmpty(t *testing.T) {
 		t.Fatalf("expected selector brackets in out-of-bounds output: %q", out)
 	}
 }
+
+// ---------- Input ----------
 
 func TestTUIInputActiveRendersLabelValueCursor(t *testing.T) {
 	orig := Configured()
@@ -233,6 +242,8 @@ func TestTUIInputInactiveOmitsCursor(t *testing.T) {
 		t.Fatalf("expected no cursor in inactive input: %q", plain)
 	}
 }
+
+// ---------- Divider ----------
 
 func TestTUIDividerUsesConfigWidth(t *testing.T) {
 	orig := Configured()
@@ -290,6 +301,403 @@ func TestTUIDividerCustomRune(t *testing.T) {
 		t.Fatalf("expected '=' repeated 10 times, got %q", plain)
 	}
 }
+
+// ---------- TreeView ----------
+
+// testNode implements TreeNode for testing.
+type testNode struct {
+	key    string
+	label  string
+	parent string
+}
+
+func (n testNode) TreeKey() string    { return n.key }
+func (n testNode) TreeLabel() string  { return n.label }
+func (n testNode) TreeParent() string { return n.parent }
+
+func TestTreeViewFlatList(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{NoColor: true})
+
+	tui := NewTUI()
+	out := captureStdout(t, func() {
+		entries := tui.TreeView(&TreeViewParams{
+			Nodes: []TreeNode{
+				testNode{key: "b", label: "Bravo", parent: ""},
+				testNode{key: "a", label: "Alpha", parent: ""},
+				testNode{key: "c", label: "Charlie", parent: ""},
+			},
+		})
+		if len(entries) != 3 {
+			t.Fatalf("expected 3 entries, got %d", len(entries))
+		}
+		// Sorted by key
+		if entries[0].Node.TreeLabel() != "Alpha" {
+			t.Fatalf("expected Alpha first, got %s", entries[0].Node.TreeLabel())
+		}
+	})
+	if !strings.Contains(out, "Alpha") || !strings.Contains(out, "Bravo") {
+		t.Fatalf("expected labels in output: %q", out)
+	}
+}
+
+func TestTreeViewNested(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{NoColor: true})
+
+	tui := NewTUI()
+	out := captureStdout(t, func() {
+		entries := tui.TreeView(&TreeViewParams{
+			Nodes: []TreeNode{
+				testNode{key: "root", label: "Root", parent: ""},
+				testNode{key: "child1", label: "Child 1", parent: "root"},
+				testNode{key: "child2", label: "Child 2", parent: "root"},
+				testNode{key: "grandchild", label: "Grandchild", parent: "child1"},
+			},
+		})
+		if len(entries) != 4 {
+			t.Fatalf("expected 4 entries, got %d", len(entries))
+		}
+		if entries[0].Depth != 0 {
+			t.Fatalf("root depth should be 0, got %d", entries[0].Depth)
+		}
+		if entries[1].Depth != 1 {
+			t.Fatalf("child depth should be 1, got %d", entries[1].Depth)
+		}
+	})
+	if !strings.Contains(out, "├─") || !strings.Contains(out, "└─") {
+		t.Fatalf("expected tree connectors in output: %q", out)
+	}
+}
+
+func TestTreeViewShowIndex(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{NoColor: true})
+
+	tui := NewTUI()
+	out := captureStdout(t, func() {
+		tui.TreeView(&TreeViewParams{
+			Nodes: []TreeNode{
+				testNode{key: "a", label: "Alpha", parent: ""},
+			},
+			ShowIndex: true,
+		})
+	})
+	if !strings.Contains(out, "  0") {
+		t.Fatalf("expected index 0 in output: %q", out)
+	}
+}
+
+func TestTreeViewCenteredBlockAlignment(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{
+		NoColor: true,
+		TUI: TUIConfig{
+			MaxWidth: 60,
+			Centered: true,
+		},
+	})
+
+	tui := NewTUI()
+	out := captureStdout(t, func() {
+		tui.TreeView(&TreeViewParams{
+			Nodes: []TreeNode{
+				testNode{key: "root", label: "Root", parent: ""},
+				testNode{key: "child1", label: "Child 1", parent: "root"},
+				testNode{key: "child2", label: "Child 2 has a longer label", parent: "root"},
+			},
+		})
+	})
+
+	// All lines should have the same left margin (leading spaces).
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected multiple lines, got %d", len(lines))
+	}
+	firstMargin := len(lines[0]) - len(strings.TrimLeft(lines[0], " "))
+	for i, line := range lines {
+		margin := len(line) - len(strings.TrimLeft(line, " "))
+		if margin != firstMargin {
+			t.Fatalf("line %d margin %d differs from line 0 margin %d\nlines:\n%s", i, margin, firstMargin, out)
+		}
+	}
+}
+
+// ---------- Summary / PhaseTimer ----------
+
+func TestPhaseTimerOrdering(t *testing.T) {
+	pt := NewPhaseTimer()
+	pt.Begin("init")
+	time.Sleep(5 * time.Millisecond)
+	pt.Begin("process")
+	time.Sleep(5 * time.Millisecond)
+	pt.End()
+
+	phases := pt.Phases()
+	if len(phases) != 2 {
+		t.Fatalf("expected 2 phases, got %d", len(phases))
+	}
+	if phases[0].Label != "init" {
+		t.Fatalf("expected first phase 'init', got %q", phases[0].Label)
+	}
+	if phases[1].Label != "process" {
+		t.Fatalf("expected second phase 'process', got %q", phases[1].Label)
+	}
+	if pt.Elapsed() < 10*time.Millisecond {
+		t.Fatalf("expected elapsed >= 10ms, got %s", pt.Elapsed())
+	}
+}
+
+func TestPhaseTimerConcurrency(t *testing.T) {
+	pt := NewPhaseTimer()
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			pt.Begin("phase")
+			pt.End()
+			_ = pt.Phases()
+			_ = pt.Elapsed()
+		}()
+	}
+	wg.Wait()
+}
+
+func TestOperationSummaryOK(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{
+		NoColor: false,
+		Colors: ColorConfig{
+			Success: smplog.StyleColor256(10),
+			Error:   smplog.StyleColor256(9),
+			Title:   smplog.StyleColor256(11),
+		},
+	})
+
+	tui := NewTUI()
+	out := captureStdout(t, func() {
+		tui.OperationSummary(&OperationSummaryParams{
+			Title: "Deploy",
+			OK:    true,
+			Fields: []SummaryField{
+				{Label: "target", Value: "prod"},
+			},
+		})
+	})
+	if !strings.Contains(out, "[OK]") {
+		t.Fatalf("expected [OK] in output: %q", out)
+	}
+	// Should use success color (color 10)
+	if !strings.Contains(out, "\x1b[38;5;10m") {
+		t.Fatalf("expected success color in output: %q", out)
+	}
+}
+
+func TestOperationSummaryFailed(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{
+		NoColor: false,
+		Colors: ColorConfig{
+			Error: smplog.StyleColor256(9),
+			Title: smplog.StyleColor256(11),
+		},
+	})
+
+	tui := NewTUI()
+	out := captureStdout(t, func() {
+		tui.OperationSummary(&OperationSummaryParams{
+			Title: "Deploy",
+			OK:    false,
+		})
+	})
+	if !strings.Contains(out, "[FAILED]") {
+		t.Fatalf("expected [FAILED] in output: %q", out)
+	}
+	// Should use error color (color 9)
+	if !strings.Contains(out, "\x1b[38;5;9m") {
+		t.Fatalf("expected error color in output: %q", out)
+	}
+}
+
+func TestOperationSummaryCenteredBlockAlignment(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{
+		NoColor: true,
+		TUI: TUIConfig{
+			MaxWidth: 60,
+			Centered: true,
+		},
+	})
+
+	tui := NewTUI()
+	out := captureStdout(t, func() {
+		tui.OperationSummary(&OperationSummaryParams{
+			Title: "Deploy",
+			OK:    true,
+			Fields: []SummaryField{
+				{Label: "target", Value: "prod"},
+				{Label: "version", Value: "v1.2.3-beta.42"},
+			},
+		})
+	})
+
+	// All lines should have the same total length (padded to blockWidth, then centered).
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("expected multiple lines, got %d", len(lines))
+	}
+	firstLen := len(lines[0])
+	for i, line := range lines {
+		if len(line) != firstLen {
+			t.Fatalf("line %d length %d differs from line 0 length %d\nlines:\n%s", i, len(line), firstLen, out)
+		}
+	}
+}
+
+// ---------- Progress ----------
+
+func TestProgressBarRendersOutput(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{NoColor: true})
+
+	var out bytes.Buffer
+	var dst bytes.Buffer
+	pb := NewProgressBar(&dst, ProgressBarParams{
+		Label:     "upload",
+		Total:     100,
+		Width:     10,
+		MinRender: 0, // render every write
+		Out:       &out,
+	})
+
+	data := make([]byte, 50)
+	n, err := pb.Write(data)
+	if err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if n != 50 {
+		t.Fatalf("Write returned %d, want 50", n)
+	}
+
+	pb.Done()
+
+	rendered := out.String()
+	if !strings.Contains(rendered, "upload") {
+		t.Fatalf("expected label in output: %q", rendered)
+	}
+	if !strings.Contains(rendered, "[") {
+		t.Fatalf("expected bar in output: %q", rendered)
+	}
+	if dst.Len() != 50 {
+		t.Fatalf("dst got %d bytes, want 50", dst.Len())
+	}
+}
+
+func TestProgressBarThrottling(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{NoColor: true})
+
+	var out bytes.Buffer
+	var dst bytes.Buffer
+	pb := NewProgressBar(&dst, ProgressBarParams{
+		Label:     "dl",
+		Total:     1000,
+		Width:     10,
+		MinRender: 1 * time.Hour, // effectively never re-render
+		Out:       &out,
+	})
+
+	// First write triggers initial render
+	pb.Write(make([]byte, 100))
+	firstLen := out.Len()
+	if firstLen == 0 {
+		t.Fatal("expected initial render")
+	}
+
+	// Second write should be throttled
+	pb.Write(make([]byte, 100))
+	if out.Len() != firstLen {
+		t.Fatal("expected throttled render (no new output)")
+	}
+}
+
+func TestProgressBarNoTotal(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{NoColor: true})
+
+	var out bytes.Buffer
+	var dst bytes.Buffer
+	pb := NewProgressBar(&dst, ProgressBarParams{
+		Label:     "stream",
+		Total:     0, // unknown
+		Width:     10,
+		MinRender: 0,
+		Out:       &out,
+	})
+
+	pb.Write(make([]byte, 42))
+	pb.Done()
+
+	rendered := out.String()
+	if !strings.Contains(rendered, "?%") {
+		t.Fatalf("expected unknown percentage marker in output: %q", rendered)
+	}
+}
+
+func TestProgressBarNoColor(t *testing.T) {
+	orig := Configured()
+	t.Cleanup(func() { Configure(orig) })
+	Configure(Config{NoColor: true})
+
+	var out bytes.Buffer
+	pb := NewProgressBar(&bytes.Buffer{}, ProgressBarParams{
+		Label:     "test",
+		Total:     100,
+		Width:     10,
+		MinRender: 0,
+		Out:       &out,
+	})
+
+	pb.Write(make([]byte, 50))
+	pb.Done()
+
+	if strings.Contains(out.String(), "\x1b[") {
+		t.Fatalf("expected no ANSI escapes with NoColor=true: %q", out.String())
+	}
+}
+
+func TestFormatBytes(t *testing.T) {
+	tests := []struct {
+		in   int64
+		want string
+	}{
+		{0, "0 B"},
+		{512, "512 B"},
+		{1024, "1.0 KiB"},
+		{1536, "1.5 KiB"},
+		{1048576, "1.0 MiB"},
+		{1073741824, "1.0 GiB"},
+	}
+	for _, tt := range tests {
+		got := formatBytes(tt.in)
+		if got != tt.want {
+			t.Errorf("formatBytes(%d) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+// ---------- Shared / Width / Centering ----------
 
 func TestTUIWidthClampsTruncates(t *testing.T) {
 	orig := Configured()
