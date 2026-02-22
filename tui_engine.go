@@ -53,9 +53,7 @@ func WriteAt(row, col int, color, format string, v ...any) (int, error) {
 	if err != nil {
 		return n, err
 	}
-	cfg := Configured()
-	text := fmt.Sprintf(format, v...)
-	m, err := fmt.Fprint(os.Stdout, smplog.Colorize(color, text, cfg.NoColor))
+	m, err := smplog.Fcolorf(os.Stdout, color, format, v...)
 	return n + m, err
 }
 
@@ -112,7 +110,7 @@ func MenuItem(index int, label string, selected bool) (int, error) {
 		prefix = cfg.TUI.MenuSelectedPrefix
 	}
 	text := fmt.Sprintf("%s %*d) %s", prefix, cfg.TUI.MenuIndexWidth, index, label)
-	return fmt.Fprint(os.Stdout, smplog.Colorize(color, text, cfg.NoColor))
+	return smplog.Fcolorf(os.Stdout, color, "%s", text)
 }
 
 // KeyHint writes a keyboard hint using prompt and data colors.
@@ -120,7 +118,7 @@ func KeyHint(key, desc string) (int, error) {
 	cfg := Configured()
 	keyText := smplog.Colorize(cfg.Colors.Prompt, key, cfg.NoColor)
 	descText := smplog.Colorize(cfg.Colors.Data, desc, cfg.NoColor)
-	return fmt.Fprintf(os.Stdout, "[%s] %s", keyText, descText)
+	return smplog.Fprintf(os.Stdout, "[%s] %s", keyText, descText)
 }
 
 // Field writes a key/value pair using prompt and data colors.
@@ -128,25 +126,25 @@ func Field(label string, value any) (int, error) {
 	cfg := Configured()
 	labelText := smplog.Colorize(cfg.Colors.Prompt, label, cfg.NoColor)
 	valueText := smplog.Colorize(cfg.Colors.Data, fmt.Sprint(value), cfg.NoColor)
-	return fmt.Fprintf(os.Stdout, "%s: %s", labelText, valueText)
+	return smplog.Fprintf(os.Stdout, "%s: %s", labelText, valueText)
 }
 
 // StatusInfo writes an info-status message using the data color.
 func StatusInfo(msg string) (int, error) {
 	cfg := Configured()
-	return fmt.Fprint(os.Stdout, smplog.Colorize(cfg.Colors.Data, msg, cfg.NoColor))
+	return smplog.Fcolorf(os.Stdout, cfg.Colors.Data, "%s", msg)
 }
 
 // StatusWarn writes a warning-status message using the prompt color.
 func StatusWarn(msg string) (int, error) {
 	cfg := Configured()
-	return fmt.Fprint(os.Stdout, smplog.Colorize(cfg.Colors.Prompt, msg, cfg.NoColor))
+	return smplog.Fcolorf(os.Stdout, cfg.Colors.Prompt, "%s", msg)
 }
 
 // StatusError writes an error-status message using the configured error color.
 func StatusError(msg string) (int, error) {
 	cfg := Configured()
-	return fmt.Fprint(os.Stdout, smplog.Colorize(cfg.Colors.Error, msg, cfg.NoColor))
+	return smplog.Fcolorf(os.Stdout, cfg.Colors.Error, "%s", msg)
 }
 
 // InputLine writes a compact prompt/value input row.
@@ -156,10 +154,10 @@ func InputLine(prefix, value string, active bool) (int, error) {
 	prefixText := smplog.Colorize(cfg.Colors.Prompt, prefix, cfg.NoColor)
 	valueText := smplog.Colorize(cfg.Colors.Data, value, cfg.NoColor)
 	if !active {
-		return fmt.Fprintf(os.Stdout, "%s%s", prefixText, valueText)
+		return smplog.Fprintf(os.Stdout, "%s%s", prefixText, valueText)
 	}
 	cursor := smplog.Colorize(cfg.Colors.Prompt, cfg.TUI.InputCursor, cfg.NoColor)
-	return fmt.Fprintf(os.Stdout, "%s%s%s", prefixText, valueText, cursor)
+	return smplog.Fprintf(os.Stdout, "%s%s%s", prefixText, valueText, cursor)
 }
 
 // Divider writes a horizontal divider using '-' and the divider color.
@@ -177,7 +175,7 @@ func DividerRune(width int, r rune) (int, error) {
 		r = '-'
 	}
 	line := strings.Repeat(string(r), width)
-	return fmt.Fprint(os.Stdout, smplog.Colorize(cfg.Colors.Divider, line, cfg.NoColor))
+	return smplog.Fcolorf(os.Stdout, cfg.Colors.Divider, "%s", line)
 }
 
 // BeginFrame switches to alt-screen, hides the cursor, clears, and positions at 1,1.
@@ -205,7 +203,7 @@ func EndFrame() error {
 }
 
 func writeANSI(seq string) (int, error) {
-	return fmt.Fprint(os.Stdout, seq)
+	return smplog.Fprint(os.Stdout, seq)
 }
 
 func maxOne(n int) int {

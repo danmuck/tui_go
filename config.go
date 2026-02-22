@@ -87,6 +87,10 @@ func Configure(cfg Config) {
 	stateMu.Lock()
 	currentConfig = cfg
 	stateMu.Unlock()
+	// Sync NoColor to smplog so Fcolorf respects the tui setting.
+	sc := smplog.Configured()
+	sc.NoColor = cfg.NoColor
+	smplog.Configure(sc)
 }
 
 // Configured returns the current package-global config.

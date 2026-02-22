@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"unicode/utf8"
@@ -50,7 +49,7 @@ func writeComposite(cfg Config, line string, plainWidth int) (int, error) {
 	} else {
 		output = line
 	}
-	return fmt.Fprintln(os.Stdout, output)
+	return smplog.Fprintln(os.Stdout, output)
 }
 
 // blockLine holds a pre-colorized line and its visible rune count.

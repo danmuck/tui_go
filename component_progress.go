@@ -123,13 +123,13 @@ func (pb *ProgressBar) render(now time.Time) {
 
 	plain := fmt.Sprintf("\r  %s  [%s]  %s  %s  %s", label, bar, pctStr, sizeStr, speed)
 	colored := smplog.Colorize(cfg.Colors.Data, plain, noColor)
-	fmt.Fprint(pb.out, colored) //nolint:errcheck
+	smplog.Fprint(pb.out, colored) //nolint:errcheck
 }
 
 // Done flushes the final render with a trailing newline.
 func (pb *ProgressBar) Done() {
 	pb.render(time.Now())
-	fmt.Fprintln(pb.out) //nolint:errcheck
+	smplog.Fprintln(pb.out, "") //nolint:errcheck
 }
 
 // Written returns the total number of bytes written so far.
