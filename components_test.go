@@ -691,7 +691,7 @@ func TestFormatBytes(t *testing.T) {
 
 // ---------- Shared / Width / Centering ----------
 
-func TestTUIWidthClampsTruncates(t *testing.T) {
+func TestTUIWidthDoesNotClipContent(t *testing.T) {
 	orig := Configured()
 	t.Cleanup(func() { Configure(orig) })
 	Configure(Config{
@@ -704,11 +704,8 @@ func TestTUIWidthClampsTruncates(t *testing.T) {
 	out := buf.String()
 
 	plain := strings.TrimRight(smplog.StripANSI(out), "\n")
-	if utf8.RuneCountInString(plain) != 5 {
-		t.Fatalf("expected 5 runes after clipping, got %d (%q)", utf8.RuneCountInString(plain), plain)
-	}
-	if plain != "Hello" {
-		t.Fatalf("expected 'Hello', got %q", plain)
+	if plain != "Hello World" {
+		t.Fatalf("expected full content %q, got %q", "Hello World", plain)
 	}
 }
 

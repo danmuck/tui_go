@@ -31,7 +31,6 @@ type TitleParams struct {
 // stay visually aligned as a block.
 func (t TUI) MenuTC(p *MenuParams) {
 	cfg := Configured()
-	width := effectiveWidth(p.Width, cfg)
 
 	lines := make([]blockLine, len(p.Items))
 	for i, entry := range p.Items {
@@ -42,9 +41,6 @@ func (t TUI) MenuTC(p *MenuParams) {
 			prefix = cfg.TUI.MenuSelectedPrefix
 		}
 		plain := fmt.Sprintf("%s %*d) %s", prefix, cfg.TUI.MenuIndexWidth, i+1, entry.Label)
-		if width > 0 {
-			plain = Clip(width, plain)
-		}
 		colored := smplog.Colorize(color, plain, cfg.NoColor)
 		lines[i] = blockLine{colored: colored, plainWidth: utf8.RuneCountInString(plain)}
 	}

@@ -29,11 +29,8 @@ func effectiveWidth(paramWidth int, cfg Config) int {
 }
 
 // writeComponent is the single choke-point for all single-color component output.
-// It clips, colorizes, optionally centers, then writes a line.
+// It colorizes, optionally centers, then writes a line.
 func (t TUI) writeComponent(cfg Config, color, plainContent string, width int) (int, error) {
-	if width > 0 {
-		plainContent = Clip(width, plainContent)
-	}
 	colored := smplog.Colorize(color, plainContent, cfg.NoColor)
 	return t.writeComposite(cfg, colored, utf8.RuneCountInString(plainContent))
 }
