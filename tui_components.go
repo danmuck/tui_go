@@ -134,7 +134,8 @@ func (TUI) Menu(p *MenuParams) {
 func (TUI) MenuTitle(p *TitleParams) {
 	cfg := Configured()
 	width := effectiveWidth(p.Width, cfg)
-	writeComponent(cfg, cfg.Colors.Title, p.Text, width) //nolint:errcheck
+	text := cfg.TUI.MenuTitlePrefix + p.Text + cfg.TUI.MenuTitlePostfix
+	writeComponent(cfg, cfg.Colors.Title, text, width) //nolint:errcheck
 }
 
 // Selector renders a "label: < current >" selector row to stdout.

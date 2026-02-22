@@ -25,6 +25,8 @@ type TUIConfig struct {
 	DividerWidth         int
 	MaxWidth             int  // 0 = unconstrained
 	Centered             bool // center content within MaxWidth when true
+	MenuTitlePrefix      string
+	MenuTitlePostfix     string
 }
 
 // ColorConfig holds raw ANSI escape strings for each tui color role.
@@ -150,6 +152,8 @@ type tuiFileConfig struct {
 	DividerWidth         int    `toml:"divider_width"`
 	MaxWidth             int    `toml:"max_width"`
 	Centered             bool   `toml:"centered"`
+	MenuTitlePrefix      string `toml:"menu_title_prefix"`
+	MenuTitlePostfix     string `toml:"menu_title_postfix"`
 }
 
 // colorFileConfig is the on-disk TOML shape of ColorConfig.
@@ -190,6 +194,8 @@ func ConfigFromFile(path string) (Config, error) {
 			DividerWidth:         fc.TUI.DividerWidth,
 			MaxWidth:             fc.TUI.MaxWidth,
 			Centered:             fc.TUI.Centered,
+			MenuTitlePrefix:      fc.TUI.MenuTitlePrefix,
+			MenuTitlePostfix:     fc.TUI.MenuTitlePostfix,
 		},
 		Colors: ColorConfig{
 			Menu:    color256(fc.Colors.Menu),
