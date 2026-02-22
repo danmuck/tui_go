@@ -35,6 +35,7 @@ type ColorConfig struct {
 	Prompt  string
 	Data    string
 	Divider string
+	Error   string
 }
 
 // Config is the runtime configuration for tui_go.
@@ -70,6 +71,7 @@ func DefaultConfig() Config {
 			Prompt:  d.Prompt,
 			Data:    d.Data,
 			Divider: d.Divider,
+			Error:   smplog.StyleColor256(smplog.Red),
 		},
 	}
 }
@@ -125,6 +127,9 @@ func normalizeConfig(cfg Config) Config {
 	}
 	if c.Divider == "" {
 		c.Divider = dc.Divider
+	}
+	if c.Error == "" {
+		c.Error = dc.Error
 	}
 	return cfg
 }
